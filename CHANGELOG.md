@@ -7,6 +7,14 @@
 - fix(fabric.Group): support `excludeFromExport` set on objects [#7148](https://github.com/fabricjs/fabric.js/pull/7148).
 - fix(fabric.StaticCanvas): support `excludeFromExport` set on `backgroundColor`, `overlayColor`, `clipPath` [#7148](https://github.com/fabricjs/fabric.js/pull/7148).
 - feat(fabric.Collection): the `contains` method now accepts a second boolean parameter `deep`, checking all descendants, `collection.contains(obj, true)` [#7139](https://github.com/fabricjs/fabric.js/pull/7139).
+- feat(fabric.BaseBrush): added `clipPath` property [#7175](https://github.com/fabricjs/fabric.js/pull/7175).
+- feat(fabric.CircleBrush): added `clipPath` property [#7175](https://github.com/fabricjs/fabric.js/pull/7175).
+- feat(fabric.PencilBrush): added `clipPath` property [#7175](https://github.com/fabricjs/fabric.js/pull/7175).
+- feat(fabric.PatternBrush): added `clipPath` property [#7175](https://github.com/fabricjs/fabric.js/pull/7175).
+- feat(fabric.SprayBrush): added `clipPath` property [#7175](https://github.com/fabricjs/fabric.js/pull/7175).
+- feat(fabric.EraserBrush): added `clipPath` property [#7175](https://github.com/fabricjs/fabric.js/pull/7175).
+- Breaking: renamed `fabric.SprayBrush` `render` method to `renderChunk`.
+- Breaking: renamed `fabric.EraserBrush` `render` method to `renderAll`.
 
 ## [4.5.1]
 

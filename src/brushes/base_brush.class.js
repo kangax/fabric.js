@@ -47,7 +47,7 @@ fabric.BaseBrush = fabric.util.createClass(/** @lends fabric.BaseBrush.prototype
    * @type Number
    * @default
    */
-  strokeMiterLimit:         10,
+  strokeMiterLimit: 10,
 
   /**
    * Stroke Dash Array.
@@ -61,9 +61,13 @@ fabric.BaseBrush = fabric.util.createClass(/** @lends fabric.BaseBrush.prototype
    * @type Boolean
    * @default false
   */
-
   limitedToCanvasSize: false,
 
+  /**
+   * Same as fabric.Object `clipPath` property.
+   * The clip path is positioned relative to the top left corner of the viewport.
+   */
+  clipPath: undefined,
 
   /**
    * Sets brush styles
@@ -117,7 +121,83 @@ fabric.BaseBrush = fabric.util.createClass(/** @lends fabric.BaseBrush.prototype
 
   needsFullRender: function() {
     var color = new fabric.Color(this.color);
-    return color.getAlpha() < 1 || !!this.shadow;
+    return color.getAlpha() < 1 || !!this.shadow || (this.clipPath && this.clipPath.isCacheDirty());
+  },
+
+  /**
+   * needed for `absolutePositioned` `clipPath`
+   * @private
+   */
+  calcTransformMatrix: function () {
+    return fabric.util.invertTransform(this.canvas.viewportTransform);
+  },
+
+  /**
+   * @private
+   * @param {CanvasRenderingContext2D} ctx
+   */
+  drawClipPathOnCache: function (ctx) {
+    fabric.Object.prototype.drawClipPathOnCache.call(this, ctx);
+  },
+
+  /**
+   * @private
+   * @param {CanvasRenderingContext2D} ctx
+   */
+  _drawClipPath: function (ctx) {
+    if (!this.clipPath) {
+      return;
+    }
+    this.clipPath.canvas = this.canvas;
+    var v = fabric.util.invertTransform(this.canvas.viewportTransform);
+    ctx.save();
+    ctx.transform(v[0], v[1], v[2], v[3], v[4], v[5]);
+    fabric.Object.prototype._drawClipPath.call(this, ctx);
+    ctx.restore();
+  },
+
+  /**
+   * Adds the clip path to the resulting object created by the brush
+   * @private
+   * @param {fabric.Object} result
+   */
+  _addClipPathToResult: function (result) {
+    if (!this.clipPath) {
+      return;
+    }
+    var t = result.calcTransformMatrix();
+    if (!this.clipPath.absolutePositioned) {
+      t = fabric.util.multiplyTransformMatrices(this.canvas.viewportTransform, t);
+    }
+    this.clipPath.clone(function (clipPath) {
+      var desiredTransform = fabric.util.multiplyTransformMatrices(
+        fabric.util.invertTransform(t),
+        clipPath.calcTransformMatrix()
+      );
+      fabric.util.applyTransformToObject(clipPath, desiredTransform);
+      result.set('clipPath', clipPath);
+    }, ['inverted']);
+  },
+
+  /**
+   * Subclasses should override this method
+   * @private
+   * @param {CanvasRenderingContext2D} ctx
+   */
+  render: function (ctx /*eslint-disable-line no-unused-vars*/) {
+
+  },
+
+  /**
+   * Render the full state of the brush
+   * @private
+   */
+  _render: function () {
+    var ctx = this.canvas.contextTop;
+    this._saveAndTransform(ctx);
+    this.render(ctx);
+    this._drawClipPath(ctx);
+    ctx.restore();
   },
 
   /**

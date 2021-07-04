@@ -30,6 +30,7 @@ fabric.CircleBrush = fabric.util.createClass(fabric.BaseBrush, /** @lends fabric
         ctx = this.canvas.contextTop;
     this._saveAndTransform(ctx);
     this.dot(ctx, point);
+    this._drawClipPath(ctx);
     ctx.restore();
   },
 
@@ -52,17 +53,14 @@ fabric.CircleBrush = fabric.util.createClass(fabric.BaseBrush, /** @lends fabric
   },
 
   /**
-   * Render the full state of the brush
    * @private
+   * @param {CanvasRenderingContext2D} ctx
    */
-  _render: function() {
-    var ctx  = this.canvas.contextTop, i, len,
-        points = this.points;
-    this._saveAndTransform(ctx);
+  render: function (ctx) {
+    var i, len, points = this.points;
     for (i = 0, len = points.length; i < len; i++) {
       this.dot(ctx, points[i]);
     }
-    ctx.restore();
   },
 
   /**
@@ -109,6 +107,7 @@ fabric.CircleBrush = fabric.util.createClass(fabric.BaseBrush, /** @lends fabric
     }
     var group = new fabric.Group(circles);
     group.canvas = this.canvas;
+    this._addClipPathToResult(group);
 
     this.canvas.fire('before:path:created', { path: group });
     this.canvas.add(group);

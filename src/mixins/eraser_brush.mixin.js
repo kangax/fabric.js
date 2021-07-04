@@ -10,7 +10,7 @@
      * Create Rect that holds the color to support erasing
      * patches {@link CommonMethods#_initGradient}
      * @private
-     * @param {'bakground'|'overlay'} property
+     * @param {'background'|'overlay'} property
      * @param {(String|fabric.Pattern|fabric.Rect)} color Color or pattern or rect (in case of erasing)
      * @param {Function} callback Callback to invoke when color is set
      * @param {Object} options
@@ -248,9 +248,9 @@
   /**
    * EraserBrush class
    * Supports selective erasing meaning that only erasable objects are affected by the eraser brush.
-   * In order to support selective erasing all non erasable objects are rendered on the main/bottom ctx
+   * In order to support selective erasing all non erasable objects and all clipped out objects are rendered on the main/bottom ctx
    * while the entire canvas is rendered on the top ctx.
-   * Canvas bakground/overlay image/color are handled as well.
+   * Canvas background/overlay image/color are handled as well.
    * When erasing occurs, the path clips the top ctx and reveals the bottom ctx.
    * This achieves the desired effect of seeming to erase only erasable objects.
    * After erasing is done the created path is added to all intersected objects' `clipPath` property.
@@ -285,7 +285,16 @@
       initialize: function (canvas) {
         this.callSuper('initialize', canvas);
         this._renderBound = this._render.bind(this);
-        this.render = this.render.bind(this);
+        this.renderAll = this.renderAll.bind(this);
+      },
+
+      /**
+       * Disable clip path drawing.
+       * Clip path must be handled differently when erasing.
+       * @private
+       */
+      _drawClipPath: function () {
+
       },
 
       /**
@@ -477,18 +486,45 @@
       },
 
       /**
+       * Render the inverted view of the clip path on the bottom layer.
+       * Clipped out objects are treated as non-erasable because they are rendered outside the erasable area.
+       * Achieves an effect of erasing only the objects inside the clipped area.
+       * @private
+       */
+      renderClippedOutLayer: function () {
+        if (!this.clipPath) {
+          return;
+        }
+        var canvas = this.canvas, ctx = canvas.getContext(), inverted = this.clipPath.inverted;
+        this.prepareCanvasForLayer('top');
+        canvas.renderCanvas(
+          ctx,
+          canvas.getObjects()
+        );
+        this.clipPath.set('inverted', !!!inverted);
+        this.callSuper('_saveAndTransform', ctx);
+        this.callSuper('_drawClipPath', ctx);
+        ctx.restore();
+        this.clipPath.set('inverted', inverted);
+        this.restoreCanvasFromLayer('top');
+      },
+
+      /**
        * 1. Render all objects on top layer, erasable and non-erasable
        *    This is important for cases such as overlapping objects, the background object erasable and the foreground object not erasable.
        * 2. Render the brush
        */
       renderTopLayer: function () {
-        var canvas = this.canvas;
+        var canvas = this.canvas, ctx = canvas.contextTop;
         this._drawOverlayOnTop = this.prepareCanvasForLayer('top');
         canvas.renderCanvas(
-          canvas.contextTop,
+          ctx,
           canvas.getObjects()
         );
-        this.callSuper('_render');
+        this._saveAndTransform(ctx);
+        this.render(ctx);
+        this.callSuper('_drawClipPath', ctx);
+        ctx.restore();
         this.restoreCanvasFromLayer('top');
       },
 
@@ -546,9 +582,10 @@
       /**
        * Rendering is done in 4 steps:
        * 1. Draw all non-erasable objects on bottom ctx with the exception of overlays {@link fabric.EraserBrush#renderBottomLayer}
-       * 2. Draw all objects on top ctx including erasable drawables {@link fabric.EraserBrush#renderTopLayer}
-       * 3. Draw eraser {@link fabric.PencilBrush#_render} at {@link fabric.EraserBrush#renderTopLayer}
-       * 4. Draw non-erasable overlays {@link fabric.EraserBrush#renderOverlay}
+       * 2. Draw all clipped out objects on bottom ctx {@link fabric.EraserBrush#renderClippedOutLayer}
+       * 3. Draw all objects on top ctx including erasable drawables {@link fabric.EraserBrush#renderTopLayer}
+       * 4. Draw eraser {@link fabric.PencilBrush#_render} at {@link fabric.EraserBrush#renderTopLayer}
+       * 5. Draw non-erasable overlays {@link fabric.EraserBrush#renderOverlay}
        *
        * @param {fabric.Canvas} canvas
        */
@@ -558,6 +595,7 @@
         }
         this.isRendering = 1;
         this.renderBottomLayer();
+        this.renderClippedOutLayer();
         this.renderTopLayer();
         this.renderOverlay();
         this.isRendering = 0;
@@ -566,7 +604,7 @@
       /**
        * @public
        */
-      render: function () {
+      renderAll: function () {
         if (this._isErasing) {
           if (this.isRendering) {
             this.isRendering = fabric.util.requestAnimFrame(this._renderBound);
