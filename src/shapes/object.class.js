@@ -62,6 +62,15 @@
     type:                     'object',
 
     /**
+     * Namespace the constructor of the object lies within.
+     * If set to null, the fabric namespace is used.
+     *
+     * @type String
+     * @default
+     */
+    namespace:                 null,
+
+    /**
      * Horizontal origin of transformation of an object (one of "left", "right", "center")
      * See http://jsfiddle.net/1ow02gea/244/ on how originX/originY affect objects in groups
      * @type String
@@ -871,6 +880,10 @@
         object.clipPath = this.clipPath.toObject(propertiesToInclude);
         object.clipPath.inverted = this.clipPath.inverted;
         object.clipPath.absolutePositioned = this.clipPath.absolutePositioned;
+      }
+
+      if (this.namespace) {
+        object.namespace = this.namespace;
       }
 
       fabric.util.populateWithProperties(this, object, propertiesToInclude);
@@ -1950,7 +1963,7 @@
   fabric.Object.NUM_FRACTION_DIGITS = 2;
 
   fabric.Object._fromObject = function(className, object, callback, extraParam) {
-    var klass = fabric[className];
+    var klass = fabric.util.getKlass(className, object.namespace);
     object = clone(object, true);
     fabric.util.enlivenPatterns([object.fill, object.stroke], function(patterns) {
       if (typeof patterns[0] !== 'undefined') {

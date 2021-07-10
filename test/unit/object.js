@@ -1,4 +1,4 @@
-(function(){
+(function(global){
 
   var canvas = this.canvas = new fabric.StaticCanvas(null, {enableRetinaScaling: false});
 
@@ -280,6 +280,98 @@
     assert.deepEqual(augmentedObjectRepr.strokeDashArray, toObjectObj.strokeDashArray);
   });
 
+  QUnit.test('toObject with namespace', function(assert) {
+    var emptyObjectRepr = {
+      'version':                  fabric.version,
+      'type':                     'object',
+      'namespace':                'Custom',
+      'originX':                  'left',
+      'originY':                  'top',
+      'left':                     0,
+      'top':                      0,
+      'width':                    0,
+      'height':                   0,
+      'fill':                     'rgb(0,0,0)',
+      'stroke':                   null,
+      'strokeWidth':              1,
+      'strokeDashArray':          null,
+      'strokeLineCap':            'butt',
+      'strokeDashOffset':         0,
+      'strokeLineJoin':           'miter',
+      'strokeMiterLimit':         4,
+      'scaleX':                   1,
+      'scaleY':                   1,
+      'angle':                    0,
+      'flipX':                    false,
+      'flipY':                    false,
+      'opacity':                  1,
+      'shadow':                   null,
+      'visible':                  true,
+      'backgroundColor':          '',
+      'fillRule':                 'nonzero',
+      'paintFirst':               'fill',
+      'globalCompositeOperation': 'source-over',
+      'skewX':                      0,
+      'skewY':                      0,
+    };
+
+    var augmentedObjectRepr = {
+      'version':                  fabric.version,
+      'type':                     'object',
+      'namespace':                'Custom',
+      'originX':                  'left',
+      'originY':                  'top',
+      'left':                     10,
+      'top':                      20,
+      'width':                    30,
+      'height':                   40,
+      'fill':                     'rgb(0,0,0)',
+      'stroke':                   null,
+      'strokeWidth':              1,
+      'strokeDashArray':          [5, 2],
+      'strokeLineCap':            'round',
+      'strokeDashOffset':         0,
+      'strokeLineJoin':           'bevil',
+      'strokeMiterLimit':         5,
+      'scaleX':                   1,
+      'scaleY':                   1,
+      'angle':                    0,
+      'flipX':                    true,
+      'flipY':                    false,
+      'opacity':                  0.13,
+      'shadow':                   null,
+      'visible':                  true,
+      'backgroundColor':          '',
+      'fillRule':                 'nonzero',
+      'paintFirst':               'fill',
+      'globalCompositeOperation': 'source-over',
+      'skewX':                      0,
+      'skewY':                      0
+    };
+
+    var Custom = {
+      Object: fabric.util.createClass(fabric.Object, {
+        'namespace': 'Custom',
+      })
+    };
+
+    var cObj = new Custom.Object();
+    assert.deepEqual(emptyObjectRepr, cObj.toObject());
+
+    cObj.set('left', 10)
+      .set('top', 20)
+      .set('width', 30)
+      .set('height', 40)
+      .set('flipX', true)
+      .set('opacity', 0.13)
+      .set('strokeDashArray', [5, 2])
+      .set('strokeLineCap', 'round')
+      .set('strokeLineJoin', 'bevil')
+      .set('strokeMiterLimit', 5);
+
+    assert.deepEqual(augmentedObjectRepr, cObj.toObject());
+  });
+
   QUnit.test('toDatalessObject', function(assert) {
     var cObj = new fabric.Object();
     assert.ok(typeof cObj.toDatalessObject === 'function');
@@ -370,6 +462,25 @@
       assert.equal(cObj.get('left'), 123);
       assert.equal(cObj.get('scaleX'), 1);
       assert.equal(cObj.get('angle'), 0);
+    });
+  });
+
+  QUnit.test('clone with namespace', function(assert) {
+    var MyClass = fabric.util.createClass(fabric.Object, {
+      namespace: 'MyNameSpace',
+      type: 'myClass'
+    });
+    MyClass.fromObject = function(object, callback) {
+      return fabric.Object._fromObject('MyClass', object, callback);
+    };
+    global.MyNameSpace = {
+      MyClass: MyClass
+    };
+    var cObj = new MyClass();
+    assert.ok(typeof cObj.clone === 'function');
+    cObj.clone(function(clone) {
+      assert.ok(clone instanceof MyClass);
+      delete global.MyNameSpace;
     });
   });
 
@@ -1205,4 +1316,4 @@
     object.fill = 'transparent';
     assert.equal(object.hasFill(), false, 'with a color that is transparent, hasFill is true');
   });
-})();
+})(typeof global !== 'undefined' ? global : this);

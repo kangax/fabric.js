@@ -1,4 +1,4 @@
-(function(global) {
+(function() {
 
   var sqrt = Math.sqrt,
       atan2 = Math.atan2,
@@ -318,7 +318,7 @@
 
       var parts = namespace.split('.'),
           len = parts.length, i,
-          obj = global || fabric.window;
+          obj = typeof global === 'undefined' ? fabric.window : global;
 
       for (i = 0; i < len; ++i) {
         obj = obj[parts[i]];
@@ -442,7 +442,7 @@
           onLoaded();
           return;
         }
-        var klass = fabric.util.getKlass(o.type, namespace);
+        var klass = fabric.util.getKlass(o.type, o.namespace || namespace);
         klass.fromObject(o, function (obj, error) {
           error || (enlivenedObjects[index] = obj);
           reviver && reviver(o, obj, error);
@@ -1068,4 +1068,4 @@
       };
     }
   };
-})(typeof exports !== 'undefined' ? exports : this);
+})();
