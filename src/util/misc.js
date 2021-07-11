@@ -591,8 +591,13 @@
      * @memberOf fabric.util
      * @return {CanvasElement} initialized canvas element
      */
-    createCanvasElement: function() {
-      return fabric.document.createElement('canvas');
+    createCanvasElement: function(canvas) {
+      var newCanvas = fabric.document.createElement('canvas');
+      if (canvas) {
+        newCanvas.width = canvas.width;
+        newCanvas.height = canvas.height;
+      }
+      return newCanvas;
     },
 
     /**
@@ -603,9 +608,7 @@
      * @return {CanvasElement} initialized canvas element
      */
     copyCanvasElement: function(canvas) {
-      var newCanvas = fabric.util.createCanvasElement();
-      newCanvas.width = canvas.width;
-      newCanvas.height = canvas.height;
+      var newCanvas = fabric.util.createCanvasElement(canvas);
       newCanvas.getContext('2d').drawImage(canvas, 0, 0);
       return newCanvas;
     },
