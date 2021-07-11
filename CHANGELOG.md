@@ -10,6 +10,10 @@
 - fix(fabric.Object): support `excludeFromExport` set on `clipPath` [#7148](https://github.com/fabricjs/fabric.js/pull/7148).
 - fix(fabric.Group): support `excludeFromExport` set on objects [#7148](https://github.com/fabricjs/fabric.js/pull/7148).
 - fix(fabric.StaticCanvas): support `excludeFromExport` set on `backgroundColor`, `overlayColor`, `clipPath` [#7148](https://github.com/fabricjs/fabric.js/pull/7148).
+- fix(fabric.EraserBrush): support object resizing (needed for eraser) [#7100](https://github.com/fabricjs/fabric.js/pull/7100).
+- fix(fabric.EraserBrush): support canvas resizing (overlay/background drawables) [#7100](https://github.com/fabricjs/fabric.js/pull/7100).
+- fix(fabric.EraserBrush): propagate `clipPath` of group to erased objects when necessary so it is correct when ungrouping/removing from group [#7100](https://github.com/fabricjs/fabric.js/pull/7100).
+- fix(fabric.EraserBrush): introduce `erasable = deep` option for `fabric.Group` [#7100](https://github.com/fabricjs/fabric.js/pull/7100).
 - feat(fabric.Collection): the `contains` method now accepts a second boolean parameter `deep`, checking all descendants, `collection.contains(obj, true)` [#7139](https://github.com/fabricjs/fabric.js/pull/7139).
 - fix(fabric.StaticCanvas): disposing canvas now restores canvas size and style to original state.
 

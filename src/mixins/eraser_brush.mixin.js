@@ -10,7 +10,7 @@
      * Create Rect that holds the color to support erasing
      * patches {@link CommonMethods#_initGradient}
      * @private
-     * @param {'bakground'|'overlay'} property
+     * @param {'background'|'overlay'} property
      * @param {(String|fabric.Pattern|fabric.Rect)} color Color or pattern or rect (in case of erasing)
      * @param {Function} callback Callback to invoke when color is set
      * @param {Object} options
@@ -109,32 +109,104 @@
       }
       if (fill || object) {
         ctx.save();
+        fill && fill.render(ctx);
         if (needsVpt) {
           ctx.transform(v[0], v[1], v[2], v[3], v[4], v[5]);
         }
-        fill && fill.render(ctx);
         object && object.render(ctx);
         ctx.restore();
       }
     },
   });
 
+  var __set = fabric.Object.prototype._set;
+  var _render = fabric.Object.prototype.render;
   var _toObject = fabric.Object.prototype.toObject;
   var __createBaseSVGMarkup = fabric.Object.prototype._createBaseSVGMarkup;
   fabric.util.object.extend(fabric.Object.prototype, {
     /**
      * Indicates whether this object can be erased by {@link fabric.EraserBrush}
-     * @type boolean
+     * The `deep` option introduces fine grained control over a group's `erasable` property.
+     * When set to `deep` the eraser will erase nested objects if they are erasable, leaving the group and the other objects untouched.
+     * When set to `true` the eraser will erase the entire group. Once the group changes the eraser is propagated to its children for proper functionality.
+     * When set to `false` the eraser will leave all objects including the group untouched.
+     * @tutorial {@link http://fabricjs.com/erasing#erasable_property}
+     * @type boolean | 'deep'
      * @default true
      */
     erasable: true,
 
     /**
      *
-     * @returns {fabric.Group | null}
+     * @returns {fabric.Group | undefined}
      */
     getEraser: function () {
-      return this.clipPath && this.clipPath.eraser ? this.clipPath : null;
+      return this.clipPath && this.clipPath.eraser ? this.clipPath : undefined;
+    },
+
+    /**
+     * Get the object's actual clip path regardless of clipping done by erasing
+     * @returns {fabric.Object | undefined}
+     */
+    getClipPath: function () {
+      var eraser = this.getEraser();
+      return eraser ? eraser._objects[0].clipPath : this.clipPath;
+    },
+
+    /**
+     * Set the object's actual clip path regardless of clipping done by erasing
+     * @param {fabric.Object} [clipPath]
+     */
+    setClipPath: function (clipPath) {
+      var eraser = this.getEraser();
+      var target = eraser ? eraser._objects[0] : this;
+      target.set('clipPath', clipPath);
+      this.set('dirty', true);
+    },
+
+    /**
+     * Updates eraser size and position to match object's size
+     * @private
+     * @param {Object} [dimensions] uses object's dimensions if unspecified
+     * @param {number} [dimensions.width]
+     * @param {number} [dimensions.height]
+     * @param {boolean} [center=false] postion the eraser relative to object's center or it's top left corner
+     */
+    _updateEraserDimensions: function (dimensions, center) {
+      var eraser = this.getEraser();
+      if (eraser) {
+        var rect = eraser._objects[0];
+        var eraserSize = { width: rect.width, height: rect.height };
+        var size = this._getNonTransformedDimensions();
+        var newSize = fabric.util.object.extend({ width: size.x, height: size.y }, dimensions);
+        if (eraserSize.width === newSize.width && eraserSize.height === newSize.height) {
+          return;
+        }
+        var offset = new fabric.Point((eraserSize.width - newSize.width) / 2, (eraserSize.height - newSize.height) / 2);
+        eraser.set(newSize);
+        eraser.setPositionByOrigin(new fabric.Point(0, 0), 'center', 'center');
+        rect.set(newSize);
+        eraser.set('dirty', true);
+        if (!center) {
+          eraser.getObjects('path').forEach(function (path) {
+            path.setPositionByOrigin(path.getCenterPoint().add(offset), 'center', 'center');
+          });
+        }
+        this.setCoords();
+      }
+    },
+
+    _set: function (key, value) {
+      __set.call(this, key, value);
+      if (key === 'width' || key === 'height') {
+        this._updateEraserDimensions();
+      }
+      return this;
+    },
+
+    render: function (ctx) {
+      this._updateEraserDimensions();
+      _render.call(this, ctx);
     },
 
     /**
@@ -193,8 +265,85 @@
     }
   });
 
+  var __restoreObjectsState = fabric.Group.prototype._restoreObjectsState;
   var _groupToObject = fabric.Group.prototype.toObject;
+  var __getBounds = fabric.Group.prototype._getBounds;
   fabric.util.object.extend(fabric.Group.prototype, {
+
+    /**
+     * If group is an eraser then dimensions should not change when paths are added or removed and should remain the size of the base rect
+     * @private
+     */
+    _getBounds: function (aX, aY, onlyWidthHeight) {
+      if (this.eraser) {
+        this.width = this._objects[0].width;
+        this.height = this._objects[0].height;
+        return;
+      }
+      __getBounds.call(this, aX, aY, onlyWidthHeight);
+    },
+
+    /**
+     * @private
+     * @param {fabric.Path} path
+     */
+    _addEraserPathToObjects: function (path) {
+      this._objects.forEach(function (object) {
+        fabric.EraserBrush.prototype._addPathToObjectEraser.call(
+          fabric.EraserBrush.prototype,
+          object,
+          path
+        );
+      });
+    },
+
+    /**
+     * Applies the group's eraser to its objects
+     * @tutorial {@link http://fabricjs.com/erasing#erasable_property}
+     */
+    applyEraserToObjects: function () {
+      var _this = this;
+      if (this.getEraser()) {
+        var transform = _this.calcTransformMatrix();
+        _this.getEraser().clone(function (eraser) {
+          var clipPath = eraser._objects[0].clipPath;
+          _this.clipPath = clipPath ? clipPath : undefined;
+          eraser.getObjects('path')
+            .forEach(function (path) {
+              //  first we transform the path from the group's coordinate system to the canvas'
+              var originalTransform = fabric.util.multiplyTransformMatrices(
+                transform,
+                path.calcTransformMatrix()
+              );
+              fabric.util.applyTransformToObject(path, originalTransform);
+              if (clipPath) {
+                clipPath.clone(function (_clipPath) {
+                  fabric.EraserBrush.prototype.applyClipPathToPath.call(
+                    fabric.EraserBrush.prototype,
+                    path,
+                    _clipPath,
+                    transform
+                  );
+                  _this._addEraserPathToObjects(path);
+                });
+              }
+              else {
+                _this._addEraserPathToObjects(path);
+              }
+            });
+        });
+      }
+    },
+
+    /**
+     * Propagate the group's eraser to its objects, crucial for proper functionality of the eraser within the group and nested objects.
+     * @private
+     */
+    _restoreObjectsState: function () {
+      this.erasable === true && this.applyEraserToObjects();
+      return __restoreObjectsState.call(this);
+    },
+
     /**
      * Returns an object representation of an instance
      * @param {Array} [propertiesToInclude] Any properties that you might want to additionally include in the output
@@ -205,6 +354,7 @@
     }
   });
 
+  var __onResize = fabric.Canvas.prototype._onResize;
   fabric.util.object.extend(fabric.Canvas.prototype, {
     /**
      * Used by {@link #renderAll}
@@ -217,6 +367,21 @@
         this.freeDrawingBrush.type === 'eraser' &&
         this.freeDrawingBrush._isErasing
       );
+    },
+
+    _onResize: function () {
+      __onResize.call(this);
+      var newSize = { width: this.width, height: this.height };
+      var needsRendering = false;
+      if (typeof this.backgroundColor === 'object' && this.backgroundColor.getEraser) {
+        this.backgroundColor.set(newSize);
+        needsRendering = true;
+      }
+      if (typeof this.overlayColor === 'object' && this.overlayColor.getEraser) {
+        this.overlayColor.set(newSize);
+        needsRendering = true;
+      }
+      needsRendering && this.requestRenderAll();
     },
 
     /**
@@ -244,18 +409,17 @@
     }
   });
 
-
   /**
    * EraserBrush class
    * Supports selective erasing meaning that only erasable objects are affected by the eraser brush.
    * In order to support selective erasing all non erasable objects are rendered on the main/bottom ctx
    * while the entire canvas is rendered on the top ctx.
-   * Canvas bakground/overlay image/color are handled as well.
+   * Canvas background/overlay image/color are handled as well.
    * When erasing occurs, the path clips the top ctx and reveals the bottom ctx.
    * This achieves the desired effect of seeming to erase only erasable objects.
    * After erasing is done the created path is added to all intersected objects' `clipPath` property.
    *
-   *
+   * @tutorial {@link http://fabricjs.com/erasing}
    * @class fabric.EraserBrush
    * @extends fabric.PencilBrush
    */
@@ -312,6 +476,16 @@
       },
 
       /**
+       *
+       * @private
+       * @param {fabric.Object} object
+       * @returns boolean
+       */
+      _isErasable: function (object) {
+        return object.erasable !== false;
+      },
+
+      /**
        * Drawing Logic For background drawables: (`backgroundImage`, `backgroundColor`)
        * 1. if erasable = true:
        *    we need to hide the drawable on the bottom ctx so when the brush is erasing it will clip the top ctx and reveal white space underneath
@@ -327,10 +501,10 @@
         var image = canvas.get('backgroundImage');
         var color = canvas.get('backgroundColor');
         var erasablesOnLayer = layer === 'top';
-        if (image && image.erasable === !erasablesOnLayer) {
+        if (image && this._isErasable(image) === !erasablesOnLayer) {
           this.hideObject(image);
         }
-        if (color && color.erasable === !erasablesOnLayer) {
+        if (color && this._isErasable(color) === !erasablesOnLayer) {
           this.hideObject(color);
         }
       },
@@ -357,11 +531,11 @@
           return false;
         };
         var erasablesOnLayer = layer === 'top';
-        var renderOverlayOnTop = (image && !image.erasable) || (color && !color.erasable);
-        if (image && image.erasable === !erasablesOnLayer) {
+        var renderOverlayOnTop = (image && !this._isErasable(image)) || (color && !this._isErasable(color));
+        if (image && this._isErasable(image) === !erasablesOnLayer) {
           this.hideObject(image);
         }
-        if (color && color.erasable === !erasablesOnLayer) {
+        if (color && this._isErasable(color) === !erasablesOnLayer) {
           this.hideObject(color);
         }
         return renderOverlayOnTop;
@@ -390,13 +564,11 @@
       prepareCollectionTraversal: function (collection) {
         var _this = this;
         collection.forEachObject(function (obj) {
-          if (obj.forEachObject) {
+          if (obj.forEachObject && obj.erasable === 'deep') {
             _this.prepareCollectionTraversal(obj);
           }
-          else {
-            if (obj.erasable) {
-              _this.hideObject(obj);
-            }
+          else if (obj.erasable) {
+            _this.hideObject(obj);
           }
         });
       },
@@ -411,7 +583,7 @@
       restoreCollectionTraversal: function (collection) {
         var _this = this;
         collection.forEachObject(function (obj) {
-          if (obj.forEachObject) {
+          if (obj.forEachObject && obj.erasable === 'deep') {
             _this.restoreCollectionTraversal(obj);
           }
           else {
@@ -470,7 +642,7 @@
         canvas.renderCanvas(
           canvas.getContext(),
           canvas.getObjects().filter(function (obj) {
-            return !obj.erasable || obj.isType('group');
+            return !obj.erasable || obj.forEachObject;
           })
         );
         this.restoreCanvasFromLayer('bottom');
@@ -580,6 +752,52 @@
       },
 
       /**
+       * Utility to apply a clip path to a path.
+       * Used to preserve clipping on eraser paths in nested objects.
+       * Called when a group has a clip path that should be applied to the path before applying erasing on the group's objects.
+       * @param {fabric.Path} path The eraser path
+       * @param {fabric.Object} clipPath The clipPath to apply to the path
+       * @param {number[]} clipPathContainerTransformMatrix The transform matrix of the object that the clip path belongs to
+       * @returns {fabric.Path} path with clip path
+       */
+      applyClipPathToPath: function (path, clipPath, clipPathContainerTransformMatrix) {
+        var pathTransform = path.calcTransformMatrix();
+        var clipPathTransform = clipPath.calcTransformMatrix();
+        var transform = fabric.util.multiplyTransformMatrices(
+          fabric.util.invertTransform(pathTransform),
+          clipPathContainerTransformMatrix
+        );
+        fabric.util.applyTransformToObject(
+          clipPath,
+          fabric.util.multiplyTransformMatrices(
+            transform,
+            clipPathTransform
+          )
+        );
+        path.clipPath = clipPath;
+        return path;
+      },
+
+      /**
+       * Utility to apply a clip path to a path.
+       * Used to preserve clipping on eraser paths in nested objects.
+       * Called when a group has a clip path that should be applied to the path before applying erasing on the group's objects.
+       * @param {fabric.Path} path The eraser path
+       * @param {fabric.Object} object The clipPath to apply to path belongs to object
+       * @param {Function} callback Callback to be invoked with the cloned path after applying the clip path
+       */
+      clonePathWithClipPath: function (path, object, callback) {
+        var objTransform = object.calcTransformMatrix();
+        var clipPath = object.getClipPath();
+        var _this = this;
+        path.clone(function (_path) {
+          clipPath.clone(function (_clipPath) {
+            callback(_this.applyClipPathToPath(_path, _clipPath, objTransform));
+          });
+        });
+      },
+
+      /**
        * Adds path to existing clipPath of object
        *
        * @param {fabric.Object} obj
@@ -589,12 +807,22 @@
         var clipObject;
         var _this = this;
         //  object is collection, i.e group
-        if (obj.forEachObject) {
-          obj.forEachObject(function (_obj) {
-            if (_obj.erasable) {
-              _this._addPathToObjectEraser(_obj, path);
-            }
+        if (obj.forEachObject && obj.erasable === 'deep') {
+          var targets = obj._objects.filter(function (_obj) {
+            return _obj.erasable;
           });
+          if (targets.length > 0 && obj.clipPath) {
+            this.clonePathWithClipPath(path, obj, function (_path) {
+              targets.forEach(function (_obj) {
+                _this._addPathToObjectEraser(_obj, _path);
+              });
+            });
+          }
+          else if (targets.length > 0) {
+            targets.forEach(function (_obj) {
+              _this._addPathToObjectEraser(_obj, path);
+            });
+          }
           return;
         }
         if (!obj.getEraser()) {
