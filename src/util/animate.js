@@ -4,6 +4,10 @@
     return false;
   }
 
+  function identityEase(currentTime, startValue) {
+    return startValue;
+  }
+
   function defaultEasing(t, b, c, d) {
     return -c * Math.cos(t / d * (Math.PI / 2)) + c + b;
   }
@@ -90,7 +94,79 @@
     return _cancelAnimFrame.apply(fabric.window, arguments);
   }
 
+  function identityEase(currentTime, startValue) {
+    return startValue;
+  }
+
+  function calculateCurrentAnimationValue(startingValue, animation, time) {
+    var easing = fabric.util.ease[animation.easing] || identityEase;
+    // valid for numbers only written like this.
+    return easing(time - animation.offset, startingValue, animation.value - startingValue, animation.duration);
+  }
+
+  function applyAnimationState(object, time) {
+    var objAnimations = object.animations;
+    if (!objAnimations || objAnimations.length === 0) {
+      return;
+    }
+    // current animations is an object created from an animation array.
+    // it allow us to have a versatile animation definition but to pick up the valid
+    // state at time X.
+    var validAnimations = objAnimations.reduce(function(accumulator, current) {
+      // from all the abimation for the key, find the one that are timely relevant
+      if (current.offset > time) {
+        // this aniamtion has to be started yet, ignore
+        return accumulator;
+      }
+      var property = current.property;
+      // at this point however it ends, i need a key for a valid animation
+      if (!accumulator[property]) {
+        accumulator[property] = {
+          previouslyEndedAt: 0,
+          previousState: object._animatableProperties[property],
+        };
+      }
+      var validAnimation = accumulator[property],
+          endTime = current.offset + current.duration;
+
+      if (endTime < time) {
+        // if time is after the full animation, this animation could define my starting state.
+        if (validAnimation.previouslyEndedAt < endTime) {
+          validAnimation.previousState = current.value;
+          validAnimation.previouslyEndedAt = endTime;
+        }
+        return accumulator;
+      }
+      // at this point the animation is the valid one.
+      validAnimation.animationEndTime = endTime;
+      validAnimation.animation = current;
+      return accumulator;
+    }, {});
+    /**
+       * at this point currentAnimation should look like this:
+       * {
+       *  fill: {
+       *    animationEndTime: 4242 // not more useful at this point
+       *    animation: { ... } // animation data, referencerenced do not mutate
+       *    previousState: 'blue', define the starting value
+       *  }
+       * }
+       */
+    Object.keys(validAnimations).forEach(function(key) {
+      var data = validAnimations[key];
+      // this is over simplified and needs probably to handle edge cases.
+      if (!data.animation) {
+        return;
+      }
+      var finalValue = fabric.util.calculateCurrentAnimationValue(data.previousState, data.animation, time);
+      console.log(finalValue);
+      object[key] = finalValue;
+    });
+  }
+
   fabric.util.animate = animate;
   fabric.util.requestAnimFrame = requestAnimFrame;
   fabric.util.cancelAnimFrame = cancelAnimFrame;
+  fabric.util.applyAnimationState = applyAnimationState;
+  fabric.util.calculateCurrentAnimationValue = calculateCurrentAnimationValue;
 })();

@@ -607,6 +607,14 @@
     ).split(' '),
 
     /**
+     * List of properties for which there is animation support
+     * @type Array
+     */
+    animatableProperties: (
+      'top left angle scaleX opacity strokeWidth'
+    ).split(' '),
+
+    /**
      * List of properties to consider for animating colors.
      * @type Array
      */
