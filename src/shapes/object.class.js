@@ -1083,6 +1083,10 @@
       ctx.restore();
     },
 
+    /**
+     * this function render the cache if necessary.
+     * if not, won't do anything
+     */
     renderCache: function(options) {
       options = options || {};
       if (!this._cacheCanvas) {
@@ -1093,6 +1097,22 @@
         this.drawObject(this._cacheContext, options.forClipping);
         this.dirty = false;
       }
+    },
+
+    /**
+     * this function render a temporary canvas with the clipPath.
+     * if not, won't do anything
+     */
+    renderClipPathCache: function() {
+      var canvas = fabric.util.createCanvasElement(), ctx;
+      canvas.width = this._cacheCanvas.width;
+      canvas.height = this._cacheCanvas.height;
+      ctx = canvas.getContext('2d');
+      ctx.translate(this.cacheTranslationX, this.cacheTranslationY);
+      ctx.scale(this.zoomX, this.zoomY);
+      this.clipPath.transform(ctx);
+      this.clipPath.drawObject(ctx, true);
+      return canvas;
     },
 
     /**
@@ -1181,7 +1201,7 @@
      * Execute the drawing operation for an object clipPath
      * @param {CanvasRenderingContext2D} ctx Context to render on
      */
-    drawClipPathOnCache: function(ctx) {
+    drawClipPathOnCache: function(ctx, canvas) {
       var path = this.clipPath;
       ctx.save();
       // DEBUG: uncomment this line, comment the following
@@ -1193,13 +1213,12 @@
         ctx.globalCompositeOperation = 'destination-in';
       }
       //ctx.scale(1 / 2, 1 / 2);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
       if (path.absolutePositioned) {
         var m = fabric.util.invertTransform(this.calcTransformMatrix());
         ctx.transform(m[0], m[1], m[2], m[3], m[4], m[5]);
       }
-      path.transform(ctx);
-      ctx.scale(1 / path.zoomX, 1 / path.zoomY);
-      ctx.drawImage(path._cacheCanvas, -path.cacheTranslationX, -path.cacheTranslationY);
+      ctx.drawImage(canvas, 0, 0);
       ctx.restore();
     },
 
@@ -1232,8 +1251,8 @@
       path.canvas = this.canvas;
       path.shouldCache();
       path._transformDone = true;
-      path.renderCache({ forClipping: true });
-      this.drawClipPathOnCache(ctx);
+      var canvas = this.renderClipPathCache();
+      this.drawClipPathOnCache(ctx, canvas);
     },
 
     /**
