@@ -18,7 +18,7 @@
         'image', 'text'],
       svgViewBoxElements = ['symbol', 'image', 'marker', 'pattern', 'view', 'svg'],
       svgInvalidAncestors = ['pattern', 'defs', 'symbol', 'metadata', 'clipPath', 'mask', 'desc'],
-      svgValidParents = ['symbol', 'g', 'a', 'svg', 'clipPath', 'defs'],
+      svgValidParents = ['symbol', 'g', 'a', 'svg', 'clipPath', 'defs', 'mask'],
 
       attributesMap = {
         cx:                   'left',
@@ -51,6 +51,7 @@
         'clip-rule':          'clipRule',
         'vector-effect':      'strokeUniform',
         'image-rendering':    'imageSmoothing',
+        mask:                 'mask',
       },
 
       colorAttributes = {
@@ -68,7 +69,7 @@
   fabric.cssRules = { };
   fabric.gradientDefs = { };
   fabric.clipPaths = { };
-
+  fabric.masks = { };
   function normalizeAttr(attr) {
     // transform attribute names
     if (attr in attributesMap) {
@@ -723,6 +724,7 @@
       callback && callback([], {});
       return;
     }
+
     var clipPaths = { };
     descendants.filter(function(el) {
       return el.nodeName.replace('svg:', '') === 'clipPath';
@@ -732,9 +734,21 @@
         return fabric.svgValidTagNamesRegEx.test(el.nodeName.replace('svg:', ''));
       });
     });
+
+    var masks = { };
+    descendants.filter(function(el) {
+      return el.nodeName.replace('svg:', '') === 'mask';
+    }).forEach(function(el) {
+      var id = el.getAttribute('id');
+      masks[id] = fabric.util.toArray(el.getElementsByTagName('*')).filter(function(el) {
+        return fabric.svgValidTagNamesRegEx.test(el.nodeName.replace('svg:', ''));
+      });
+    });
+
     fabric.gradientDefs[svgUid] = fabric.getGradientDefs(doc);
     fabric.cssRules[svgUid] = fabric.getCSSRules(doc);
     fabric.clipPaths[svgUid] = clipPaths;
+    fabric.masks[svgUid] = masks;
     // Precedence of rules:   style > class > attribute
     fabric.parseElements(elements, function(instances, elements) {
       if (callback) {
@@ -742,6 +756,7 @@
         delete fabric.gradientDefs[svgUid];
         delete fabric.cssRules[svgUid];
         delete fabric.clipPaths[svgUid];
+        delete fabric.masks[svgUid];
       }
     }, clone(options), reviver, parsingOptions);
   };
@@ -887,6 +902,9 @@
       );
       if (cssAttrs[cPath]) {
         element.setAttribute(cPath, cssAttrs[cPath]);
+      }
+      if (cssAttrs.mask) {
+        element.setAttribute('mask', cssAttrs.mask);
       }
       fontSize = parentFontSize = parentAttributes.fontSize || fabric.Text.DEFAULT_SVG_FONT_SIZE;
       if (ownAttributes[fSize]) {

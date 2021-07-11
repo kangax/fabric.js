@@ -624,6 +624,16 @@
     clipPath: undefined,
 
     /**
+     * a fabricObject that will mask this obect.
+     * the mask object gets used when the object has rendered, and the context is placed in the center
+     * of the object cacheCanvas.
+     * If you want 0,0 of a mask to align with an object center, use mask.originX/Y to 'center'
+     * 0.2125   0.7154   0.0721  0  0
+     * @type fabric.Object
+     */
+    mask: undefined,
+
+    /**
      * Meaningful ONLY when the object is used as clipPath.
      * if true, the clipPath will make the object clip to the outside of the clipPath
      * since 2.4.0
@@ -873,6 +883,10 @@
         object.clipPath.absolutePositioned = this.clipPath.absolutePositioned;
       }
 
+      if (this.mask) {
+        object.mask = this.mask.toObject(propertiesToInclude);
+      }
+
       fabric.util.populateWithProperties(this, object, propertiesToInclude);
       if (!this.includeDefaultValues) {
         object = this._removeDefaultValues(object);
@@ -1054,7 +1068,7 @@
      * Renders an object on a specified context
      * @param {CanvasRenderingContext2D} ctx Context to render on
      */
-    render: function(ctx) {
+    render: function(ctx, options) {
       // do not render if width/height are zeros or object is not visible
       if (this.isNotVisible()) {
         return;
@@ -1069,13 +1083,13 @@
       this._setOpacity(ctx);
       this._setShadow(ctx, this);
       if (this.shouldCache()) {
-        this.renderCache();
+        this.renderCache(options);
         this.drawCacheOnCanvas(ctx);
       }
       else {
         this._removeCacheCanvas();
         this.dirty = false;
-        this.drawObject(ctx);
+        this.drawObject(ctx, options);
         if (this.objectCaching && this.statefullCache) {
           this.saveState({ propertySet: 'cacheProperties' });
         }
@@ -1090,7 +1104,7 @@
       }
       if (this.isCacheDirty()) {
         this.statefullCache && this.saveState({ propertySet: 'cacheProperties' });
-        this.drawObject(this._cacheContext, options.forClipping);
+        this.drawObject(this._cacheContext, options);
         this.dirty = false;
       }
     },
@@ -1146,6 +1160,9 @@
         return true;
       }
       if (this.clipPath) {
+        return true;
+      }
+      if (this.mask) {
         return true;
       }
       return false;
@@ -1204,21 +1221,40 @@
     },
 
     /**
+     * Execute the drawing operation for an object mask
+     * @param {CanvasRenderingContext2D} ctx Context to render on
+     */
+    drawMaskOnCache: function(ctx) {
+      var mask = this.mask;
+      ctx.save();
+      ctx.globalCompositeOperation = 'destination-in';
+      mask.transform(ctx);
+      ctx.scale(1 / mask.zoomX, 1 / mask.zoomY);
+      ctx.drawImage(mask._cacheCanvas, -mask.cacheTranslationX, -mask.cacheTranslationY);
+      ctx.restore();
+    },
+
+    /**
      * Execute the drawing operation for an object on a specified context
      * @param {CanvasRenderingContext2D} ctx Context to render on
      */
-    drawObject: function(ctx, forClipping) {
+    drawObject: function(ctx, options) {
+      options = options || { };
       var originalFill = this.fill, originalStroke = this.stroke;
-      if (forClipping) {
+      if (options.forClipping) {
         this.fill = 'black';
         this.stroke = '';
         this._setClippingProperties(ctx);
+      }
+      else if (options.forMasking) {
+        this._setMaskingProperties(ctx);
       }
       else {
         this._renderBackground(ctx);
       }
       this._render(ctx);
       this._drawClipPath(ctx);
+      this._drawMask(ctx);
       this.fill = originalFill;
       this.stroke = originalStroke;
     },
@@ -1236,6 +1272,19 @@
       this.drawClipPathOnCache(ctx);
     },
 
+    _drawMask: function(ctx) {
+      var mask = this.mask;
+      if (!mask) { return; }
+      // needed to setup a couple of variables
+      // path canvas gets overridden with this one.
+      // TODO find a better solution?
+      mask.canvas = this.canvas;
+      mask.shouldCache();
+      mask._transformDone = true;
+      mask.renderCache({ forMasking: true });
+      this.drawMaskOnCache(ctx);
+    },
+
     /**
      * Paint the cached copy of the object on the target context.
      * @param {CanvasRenderingContext2D} ctx Context to render on
@@ -1247,6 +1296,7 @@
 
     /**
      * Check if cache is dirty
+     * HAS SIDE EFFECTS.
      * @param {Boolean} skipCanvas skip canvas checks because this object is painted
      * on parent canvas.
      */
@@ -1356,6 +1406,11 @@
       ctx.globalAlpha = 1;
       ctx.strokeStyle = 'transparent';
       ctx.fillStyle = '#000000';
+    },
+
+    _setMaskingProperties: function(ctx) {
+      ctx.strokeStyle = (new fabric.Color(this.stroke)).toMaskWhite();
+      ctx.fillStyle = (new fabric.Color(this.fill)).toMaskWhite();
     },
 
     /**

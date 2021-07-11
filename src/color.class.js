@@ -144,6 +144,18 @@
     },
 
     /**
+     * Returns color representation in RGBA format
+     * @return {String} ex: rgba(0-255,0-255,0-255,0-1)
+     */
+    toMaskWhite: function() {
+      // 0.2125   0.7154   0.0721
+      var source = this.getSource(),
+          colorLuminance = 0.2125 * source[0] / 255 + 0.7154 * source[1] / 255 + 0.0721 * source[2] / 255,
+          finalOpacity = colorLuminance * source[3];
+      return 'rgba(255, 255, 255,' + finalOpacity + ')';
+    },
+
+    /**
      * Returns color representation in HSL format
      * @return {String} ex: hsl(0-360,0%-100%,0%-100%)
      */

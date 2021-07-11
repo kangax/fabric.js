@@ -1,0 +1,42 @@
+<?xml version="1.0" standalone="no" ?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 210 210">
+  <mask id="myMask1">
+    <!-- Everything under a white pixel will be visible -->
+    <circle cx="25" cy="25" r="30" fill="red" opacity="1" />
+    <circle cx="75" cy="25" r="30" fill="green" opacity="1" />
+    <circle cx="25" cy="75" r="30" fill="blue" opacity="1" />
+    <circle cx="75" cy="75" r="30" fill="purple" opacity="1" />
+  </mask>
+  <mask id="myMask2">
+    <g transform="translate(100 0)" >
+      <!-- Everything under a white pixel will be visible -->
+      <circle cx="25" cy="25" r="30" fill="red" opacity="0.9" />
+      <circle cx="75" cy="25" r="30" fill="green" opacity="0.9" />
+      <circle cx="25" cy="75" r="30" fill="blue" opacity="0.9" />
+      <circle cx="75" cy="75" r="30" fill="purple" opacity="0.9" />
+    </g>
+  </mask>
+  <mask id="myMask3" transform="translate(100 0)">
+    <g transform="translate(0 100)" >
+      <!-- Everything under a white pixel will be visible -->
+      <circle cx="25" cy="25" r="30" fill="rgba(255, 0, 0, 0.9)" opacity="0.9" />
+      <circle cx="75" cy="25" r="30" fill="rgba(0, 255, 0, 0.9)" opacity="0.9" />
+      <circle cx="25" cy="75" r="30" fill="rgba(0, 0, 255, 0.9)" opacity="0.9" />
+      <circle cx="75" cy="75" r="30" fill="rgba(128, 0, 128, 0.9)" opacity="0.9" />
+    </g>
+  </mask>
+  <mask id="myMask4" transform="translate(100 0)">
+    <g transform="translate(100 100)" >
+      <!-- Everything under a white pixel will be visible -->
+      <circle cx="25" cy="25" r="30" fill="rgba(255, 0, 0, 0.9)" opacity="1" />
+      <circle cx="75" cy="25" r="30" fill="rgba(0, 255, 0, 0.9)" opacity="1" />
+      <circle cx="25" cy="75" r="30" fill="rgba(0, 0, 255, 0.9)" opacity="1" />
+      <circle cx="75" cy="75" r="30" fill="rgba(128, 0, 128, 0.9)" opacity="1" />
+    </g>
+  </mask>
+  <!-- with this mask applied, we "punch" a heart shape hole into the circle -->
+  <rect x="5" y="5" width="90" height="90" fill="red" stroke="green" stroke-width="10" mask="url(#myMask1)" />
+  <rect x="110" y="5" width="90" height="90" fill="green" stroke="blue" stroke-width="10" mask="url(#myMask2)" />
+  <rect x="5" y="110" width="90" height="90" fill="blue" stroke="red" stroke-width="10" mask="url(#myMask3)" />
+  <rect x="110" y="110" width="90" height="90" fill="purple" stroke="yellow" stroke-width="10" mask="url(#myMask4)" />
+</svg>

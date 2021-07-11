@@ -54,6 +54,7 @@ fabric.ElementsParser = function(elements, callback, options, reviver, parsingOp
       }
       obj._removeTransformMatrix(_options);
       _this.resolveClipPath(obj, el);
+      _this.resolveMask(obj, el);
       _this.reviver && _this.reviver(el, obj);
       _this.instances[index] = obj;
       _this.checkIfDone();
@@ -80,10 +81,20 @@ fabric.ElementsParser = function(elements, callback, options, reviver, parsingOp
     }
   };
 
-  proto.createClipPathCallback = function(obj, container) {
+  proto.createClipPathCallback = function(obj, element, container) {
     return function(_newObj) {
       _newObj._removeTransformMatrix();
       _newObj.fillRule = _newObj.clipRule;
+      container.push(_newObj);
+    };
+  };
+
+  proto.createMaskCallbak = function(obj, element, container) {
+    var _this = this;
+    return function(_newObj) {
+      _newObj._removeTransformMatrix();
+      _this.resolveGradient(_newObj, element, 'fill');
+      _this.resolveGradient(_newObj, element, 'stroke');
       container.push(_newObj);
     };
   };
@@ -106,7 +117,7 @@ fabric.ElementsParser = function(elements, callback, options, reviver, parsingOp
         klass = this.findTag(element);
         klass.fromElement(
           element,
-          this.createClipPathCallback(obj, container),
+          this.createClipPathCallback(obj, element, container),
           this.options
         );
       }
@@ -138,6 +149,58 @@ fabric.ElementsParser = function(elements, callback, options, reviver, parsingOp
       // if clip-path does not resolve to any element, delete the property.
       delete obj.clipPath;
     }
+  };
+
+  proto.resolveMask = function(obj, usingElement) {
+    var maskObj = this.extractPropertyDefinition(obj, 'mask', 'masks'),
+        element, klass, objTransformInv, container, gTransform, options;
+
+    if (!maskObj) {
+      // if does not resolve, delete it.
+      delete obj.mask;
+      return;
+    }
+    container = [];
+    objTransformInv = fabric.util.invertTransform(obj.calcTransformMatrix());
+    // move the clipPath tag as sibling to the real element that is using it
+    var objTag = maskObj[0].parentNode;
+    var objOwner = usingElement;
+    while (objOwner.parentNode && objOwner.getAttribute('mask') !== obj.mask) {
+      objOwner = objOwner.parentNode;
+    }
+    objOwner.parentNode.appendChild(objTag);
+    for (var i = 0; i < maskObj.length; i++) {
+      element = maskObj[i];
+      klass = this.findTag(element);
+      klass.fromElement(
+        element,
+        this.createMaskCallbak(obj, element, container),
+        this.options
+      );
+    }
+    if (container.length === 1) {
+      maskObj = container[0];
+    }
+    else {
+      maskObj = new fabric.Group(container);
+    }
+    gTransform = fabric.util.multiplyTransformMatrices(
+      objTransformInv,
+      maskObj.calcTransformMatrix()
+    );
+    if (maskObj.mask) {
+      this.resolveMask(maskObj, objOwner);
+    }
+    var options = fabric.util.qrDecompose(gTransform);
+    maskObj.flipX = false;
+    maskObj.flipY = false;
+    maskObj.set('scaleX', options.scaleX);
+    maskObj.set('scaleY', options.scaleY);
+    maskObj.angle = options.angle;
+    maskObj.skewX = options.skewX;
+    maskObj.skewY = 0;
+    maskObj.setPositionByOrigin({ x: options.translateX, y: options.translateY }, 'center', 'center');
+    obj.mask = maskObj;
   };
 
   proto.checkIfDone = function() {
