@@ -28,6 +28,8 @@
       this.on('added', function() {
         var canvas = _this.canvas;
         if (canvas) {
+          _this._clickHandlerInitialized = false;
+
           if (!canvas._hasITextHandlers) {
             canvas._hasITextHandlers = true;
             _this._initCanvasHandlers(canvas);
