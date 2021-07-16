@@ -1,0 +1,38 @@
+{
+  "package": {
+    "private": true,
+    "dependencies": {
+      "fabric": "latest",
+      "@types/fabric": "latest",
+      "bootstrap": "^5.0.1",
+      "react-bootstrap": "^2.0.0-beta.2",
+      "@testing-library/jest-dom": "^5.11.4",
+      "@testing-library/react": "^11.1.0",
+      "@testing-library/user-event": "^12.1.10",
+      "@types/node": "^12.0.0",
+      "@types/react": "^17.0.0",
+      "@types/react-dom": "^17.0.0",
+      "@types/jest": "^26.0.15",
+      "typescript": "^4.1.2",
+      "web-vitals": "^1.0.1"
+    },
+    "devDependencies": {
+      "axios": "^0.21.1",
+      "yargs": "^17.0.1",
+      "prompt-sync": "^4.2.0"
+    },
+    "eslintConfig": {
+      "extends": [
+        "react-app",
+        "react-app/jest"
+      ]
+    },
+    "proxy": "http://localhost:5000",
+    "scripts": {
+      "start": "node sandbox start",
+      "deploy": "node sandbox deploy",
+      "serve": "node sandbox serve",
+      "app": "react-scripts start"
+    }
+  }
+}
