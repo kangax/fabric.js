@@ -865,6 +865,7 @@
             globalCompositeOperation: this.globalCompositeOperation,
             skewX:                    toFixed(this.skewX, NUM_FRACTION_DIGITS),
             skewY:                    toFixed(this.skewY, NUM_FRACTION_DIGITS),
+            selectable:               this.selectable,
           };
 
       if (this.clipPath && !this.clipPath.excludeFromExport) {

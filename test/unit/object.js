@@ -165,7 +165,8 @@
       globalCompositeOperation: 'source-over',
       skewX:                      0,
       skewY:                      0,
-      strokeUniform:              false
+      strokeUniform:              false,
+      selectable:                 false
     };
 
     var augmentedObjectRepr = {
@@ -199,7 +200,8 @@
       globalCompositeOperation: 'source-over',
       skewX:                      0,
       skewY:                      0,
-      strokeUniform:              false
+      strokeUniform:              false,
+      selectable:                 true
     };
 
     var cObj = new fabric.Object();
@@ -214,7 +216,8 @@
       .set('strokeDashArray', [5, 2])
       .set('strokeLineCap', 'round')
       .set('strokeLineJoin', 'bevel')
-      .set('strokeMiterLimit', 5);
+      .set('strokeMiterLimit', 5)
+      .set('selectable', true);
 
     assert.deepEqual(augmentedObjectRepr, cObj.toObject());
 
