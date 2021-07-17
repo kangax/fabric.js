@@ -430,10 +430,13 @@
 
     canvas.remove(rect);
     assert.strictEqual(objectsRemoved[0], rect);
+    assert.strictEqual(rect.canvas, undefined);
 
     canvas.remove(circle1, circle2);
     assert.strictEqual(objectsRemoved[1], circle1);
+    assert.strictEqual(circle1.canvas, undefined);
     assert.strictEqual(objectsRemoved[2], circle2);
+    assert.strictEqual(circle2.canvas, undefined);
 
     assert.equal(canvas.isEmpty(), true, 'canvas should be empty');
   });
@@ -450,8 +453,21 @@
     canvas.overlayColor = '#FF0000';
     canvas.backgroundImage = bg;
     canvas.overlayImage = bg;
+
+    var objectsRemoved = [];
+    canvas.on('object:removed', function(e) {
+      objectsRemoved.push(e.target);
+    });
+    var rect1 = makeRect(),
+        rect2 = makeRect(),
+        rect3 = makeRect();
+    canvas.add(rect1, rect2, rect3);
+
     assert.equal(canvas.clear(), canvas, 'should be chainable');
     assert.equal(canvas.getObjects().length, 0, 'clear remove all objects');
+    assert.strictEqual(objectsRemoved[0], rect1, 'clear should fire remove on previously added object');
+    assert.strictEqual(objectsRemoved[1], rect2, 'clear should fire remove on previously added object');
+    assert.strictEqual(objectsRemoved[2], rect3, 'clear should fire remove on previously added object');
     assert.equal(canvas.backgroundColor, '', 'clear remove background color');
     assert.equal(canvas.overlayColor, '', 'clear remove overlay color');
     assert.equal(canvas.backgroundImage, null, 'clear remove bg image');
